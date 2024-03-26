@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import boto3
 
+# Regular expressions to match AWS access and secret keys
 access_key_pattern = re.compile(r'\bAKIA[\w]{12,}\b')
 secret_key_pattern = re.compile(r'\b[A-Za-z0-9\/+]{40,}\b')
 
@@ -110,18 +111,25 @@ def detect_secrets_in_commit(repo_path, commit, processed_commits, branch_info="
                 # Print out the findings
                 print(f"Branch: {branch_info}\nCommit ID: {commit_id}\nAuthor: {author}\nDate: {author_date}\nMessage: {subject}")
                 print(f"File: {file_path}\nAccess Key Line: {access_key_line}, Secret Key Line: {secret_key_line}")
-                print(f"Verified credentials: {'Yes' if is_valid else 'No'}\nCode Block:\n{code_block}\n{'-'*60}\n")
+                print(f"Verified credentials: {'Yes' if is_valid else 'No'}\nCode Block:\n{code_block}\n{'-'*60}")
 
 # Process all branches in the repository to find AWS credentials
 def process_branches(repo_path, branches, processed_commits):
-    for branch in branches:
-        branch = branch.strip('* ').strip().replace('remotes/origin/', '')
 
-        # Get all commits in the branch
-        commits = subprocess.check_output(['git', '-C', str(repo_path), 'log', branch, '--pretty=%H'], text=True).splitlines()
-        branch_info = f"{branch}"
-        for commit in commits:
-            detect_secrets_in_commit(repo_path, commit, processed_commits, branch_info)
+    for branch in branches:
+        # Clean up branch name, removing any leading asterisks or spaces
+        branch = branch.lstrip('* ').strip()
+        
+        try:
+            # Retrieve commits from the local branch
+            commits = subprocess.check_output(['git', '-C', str(repo_path), 'log', branch, '--pretty=%H'], text=True).splitlines()
+            branch_info = f"{branch}"
+            for commit in commits:
+                # Process each commit on the local branch
+                detect_secrets_in_commit(repo_path, commit, processed_commits, branch_info)
+        except subprocess.CalledProcessError as e:
+            print(f"Error processing local branch '{branch}': {str(e)}")
+
 
 # Process the reflog to find any commits that may have been "lost" (e.g. due to a rebase)
 def process_reflog(repo_path, processed_commits):
@@ -136,14 +144,11 @@ def find_aws_credentials(repo_path):
     # Resolve the repository path to an absolute path
     repo_path = Path(repo_path).resolve()
 
-    # Ensure we have the latest info from all branches
-    subprocess.run(['git', '-C', str(repo_path), 'fetch', '--all'], check=True)
-
     # Keep track of processed commits to avoid duplicate processing
     processed_commits = set()
 
-    # Get the list of all branches in the repository
-    branches = subprocess.check_output(['git', '-C', str(repo_path), 'branch', '-a'], text=True).splitlines()
+    # Get the list of all local branches in the repository
+    branches = subprocess.check_output(['git', '-C', str(repo_path), 'branch', '--list'], text=True).splitlines()
     process_branches(repo_path, branches, processed_commits)
     process_reflog(repo_path, processed_commits)
 

@@ -30,8 +30,8 @@ Detects hardcoded AWS credentials in a local git repository.
 ### Using Docker
 1. Build the docker image
    ```bash
-   docker build -t detect-aws .
-   ````
+   docker build -t aws-credentials-detector .
+   ```
 2. Run the tool in Docker, mounting the local repository:
    ```bash
    docker run --rm -v /path/to/local/repo:/usr/src/app/repo aws-credentials-detector /usr/src/app/repo

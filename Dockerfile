@@ -8,10 +8,10 @@ WORKDIR /usr/src/app
 RUN apt-get update && apt-get install -y git
 
 # Copy the current directory contents into the container at /usr/src/app
-COPY detect.py /usr/src/app/
+COPY detect.py requirements.txt /usr/src/app/
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir boto3
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Run detect.py when the container launches, repository path must be provided as an argument
 ENTRYPOINT ["python", "./detect.py"]
